@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Recibos Pro</title>
+    <meta name="theme-color" content="#2c3e50">
+    <link rel="manifest" href="manifest.json">
+    
+    <style>
+        :root { --primary: #2c3e50; --secondary: #3498db; }
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background: #f5f6fa; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: var(--primary); margin-bottom: 25px; }
+        
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: var(--primary); }
+        input, textarea, select { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1rem; transition: border-color 0.3s; }
+        input:focus, textarea:focus { border-color: var(--secondary); outline: none; }
+        
+        .section-title { margin-top: 30px; border-bottom: 2px solid #eee; padding-bottom: 10px; color: var(--secondary); }
+        
+        .btn-generate { width: 100%; padding: 15px; background: var(--secondary); color: white; border: none; border-radius: 10px; font-size: 1.2rem; font-weight: bold; cursor: pointer; margin-top: 20px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-generate:hover { background: #2980b9; }
+        
+        /* Ícone de impressora simples com CSS */
+        .icon-print { width: 24px; height: 24px; border: 3px solid white; border-radius: 4px; position: relative; }
+        .icon-print::before { content: ''; position: absolute; top: -6px; left: 2px; width: 14px; height: 4px; background: white; }
+        .icon-print::after { content: ''; position: absolute; bottom: -6px; left: 2px; width: 14px; height: 6px; background: white; border-top: 2px solid var(--secondary); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📠 Recibo de Manutenção</h1>
+
+    <form id="receiptForm">
+        <h3 class="section-title">Prestador do Serviço</h3>
+        <div class="form-group">
+            <label for="companyName">Sua Empresa/Nome:</label>
+            <input type="text" id="companyName" value="NetSolutions Repetidores" required>
+        </div>
+        <div class="form-group">
+            <label for="technician">Técnico Responsável:</label>
+            <input type="text" id="technician" placeholder="Nome do técnico">
+        </div>
+
+        <h3 class="section-title">Dados do Cliente</h3>
+        <div class="form-group">
+            <label for="clientName">Nome do Cliente:</label>
+            <input type="text" id="clientName" required>
+        </div>
+        <div class="form-group">
+            <label for="clientAddress">Endereço/Local:</label>
+            <input type="text" id="clientAddress" placeholder="Rua, Número, Bairro">
+        </div>
+
+        <h3 class="section-title">Detalhes do Serviço</h3>
+        <div class="form-group">
+            <label for="serviceDate">Data:</label>
+            <input type="date" id="serviceDate" required>
+        </div>
+        <div class="form-group">
+            <label for="description">Descrição do Serviço:</label>
+            <textarea id="description" rows="4">Manutenção preventiva em repetidores de sinal. Limpeza, realinhamento de antenas e testes de throughput.</textarea>
+        </div>
+        
+        <h3 class="section-title">Valores</h3>
+        <div class="form-group">
+            <label for="totalValue">Valor Total (R$):</label>
+            <input type="number" id="totalValue" step="0.01" placeholder="0.00" required>
+        </div>
+    </form>
+
+    <button class="btn-generate" onclick="generatePDF()">
+        <div class="icon-print"></div> Gerar Recibo PDF
+    </button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+
+<script>
+    // Define a data de hoje como padrão
+    document.getElementById('serviceDate').valueAsDate = new Date();
+
+    function generatePDF() {
+        // 1. Coletar dados do formulário
+        const form = document.getElementById('receiptForm');
+        if (!form.checkValidity()) {
+            alert("Por favor, preencha os campos obrigatórios.");
+            return;
+        }
+
+        const data = {
+            company: document.getElementById('companyName').value,
+            technician: document.getElementById('technician').value,
+            client: document.getElementById('clientName').value,
+            address: document.getElementById('clientAddress').value,
+            date: document.getElementById('serviceDate').value.split('-').reverse().join('/'), // Formata para PT-BR
+            desc: document.getElementById('description').value,
+            value: parseFloat(document.getElementById('totalValue').value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+            receiptNo: Date.now().toString().slice(-6) // Gera um número de recibo simples baseado no tempo
+        };
+
+        // 2. Definir a estrutura do PDF (Usando a sintaxe do pdfmake)
+        const docDefinition = {
+            pageSize: 'A4',
+            pageMargins: [40, 60, 40, 60], // Margens para impressão
+            header: {
+                text: 'Recibo de Prestação de Serviços',
+                alignment: 'right',
+                margin: [0, 20, 40, 0],
+                color: '#999',
+                fontSize: 10
+            },
+            content: [
+                // Título Principal
+                { text: 'RECIBO', style: 'header', alignment: 'center', margin: [0, 0, 0, 20] },
+                
+                // Cabeçalho com número e valor
+                {
+                    columns: [
+                        { text: `Nº: ${data.receiptNo}`, bold: true },
+                        { text: `Valor Total: ${data.value}`, style: 'totalHighlight', alignment: 'right' }
+                    ]
+                },
+                { canvas: [{ type: 'line', x1: 0, y1: 5, x2: 515, y2: 5, lineWidth: 2, lineColor: '#2c3e50' }], margin: [0, 10, 0, 20] },
+
+                // Informações das Partes (Prestador e Cliente)
+                {
+                    columns: [
+                        {
+                            stack: [
+                                { text: 'PRESTADOR DO SERVIÇO', style: 'subheader' },
+                                { text: data.company, bold: true },
+                                { text: `Técnico: ${data.technician || 'Não informado'}` }
+                            ]
+                        },
+                        {
+                            stack: [
+                                { text: 'CLIENTE', style: 'subheader' },
+                                { text: data.client, bold: true },
+                                { text: data.address || 'Endereço não informado' }
+                            ],
+                            margin: [20, 0, 0, 0]
+                        }
+                    ]
+                },
+                
+                // Tabela de Descrição do Serviço
+                { text: 'DESCRIÇÃO DOS SERVIÇOS', style: 'subheader', margin: [0, 30, 0, 10] },
+                {
+                    table: {
+                        headerRows: 1,
+                        widths: ['*', 'auto'],
+                        body: [
+                            [ { text: 'Descrição', style: 'tableHeader' }, { text: 'Data', style: 'tableHeader' } ],
+                            [ { text: data.desc, margin: [0, 5] }, { text: data.date, alignment: 'center', margin: [0, 5] } ]
+                        ]
+                    },
+                    layout: 'lightHorizontalLines'
+                },
+
+                // Área de Totais e Assinatura
+                { text: 'Declaro ter recebido a importância acima descrita pelos serviços prestados.', margin: [0, 40, 0, 60], italics: true },
+                
+                {
+                    columns: [
+                        {
+                            stack: [
+                                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1 }] },
+                                { text: 'Assinatura do Prestador', alignment: 'center', margin: [0, 5, 0, 0], fontSize: 9 }
+                            ]
+                        },
+                        {
+                            stack: [
+                                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1 }] },
+                                { text: 'Assinatura do Cliente', alignment: 'center', margin: [0, 5, 0, 0], fontSize: 9 }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            // Estilos para o PDF
+            styles: {
+                header: { fontSize: 22, bold: true, color: '#2c3e50' },
+                subheader: { fontSize: 12, bold: true, color: '#3498db', margin: [0, 0, 0, 5] },
+                totalHighlight: { fontSize: 16, bold: true, color: '#e74c3c' },
+                tableHeader: { bold: true, fontSize: 11, color: 'white', fillColor: '#2c3e50', alignment: 'center' }
+            }
+        };
+
+        // 3. Gerar e baixar o PDF
+        pdfMake.createPdf(docDefinition).download(`Recibo_${data.client.split(' ')[0]}_${data.receiptNo}.pdf`);
+    }
+
+    // Registro do Service Worker (PWA)
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('Service Worker registrado!', reg.scope))
+                .catch(err => console.log('Falha no SW:', err));
+        });
+    }
+</script>
+</body>
+</html>
